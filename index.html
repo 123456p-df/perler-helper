@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拼豆助手 · Perler Helper</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F5F2ED;
+  --surface: #FFFFFF;
+  --surface2: #F0EDE8;
+  --border: #E0DBD4;
+  --text: #1A1614;
+  --text2: #6B6460;
+  --text3: #A09A96;
+  --accent: #2D4A3E;
+  --accent2: #C8A96E;
+  --highlight: rgba(45,74,62,0.12);
+  --dim: 0.15;
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  font-family: 'Space Mono', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+.logo span { color: var(--accent2); }
+.header-sep { flex: 1; }
+.header-hint {
+  font-size: 12px;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Layout ── */
+.app {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 260px 1fr 220px;
+  grid-template-rows: 1fr;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+}
+
+/* ── Left Panel ── */
+.left-panel {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  text-transform: uppercase;
+}
+.upload-zone {
+  margin: 14px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 20px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--surface2);
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: var(--highlight); }
+.upload-icon { font-size: 28px; margin-bottom: 8px; }
+.upload-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.upload-text strong { color: var(--text); font-weight: 500; }
+#file-input { display: none; }
+
+.color-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+.color-list::-webkit-scrollbar { width: 4px; }
+.color-list::-webkit-scrollbar-track { background: transparent; }
+.color-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.color-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 1.5px solid transparent;
+  margin-bottom: 3px;
+}
+.color-item:hover { background: var(--surface2); }
+.color-item.active {
+  background: var(--highlight);
+  border-color: var(--accent);
+}
+.color-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.1);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.4);
+}
+.color-meta { flex: 1; min-width: 0; }
+.color-code {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.color-count {
+  font-size: 11px;
+  color: var(--text3);
+}
+.color-hex {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text3);
+}
+
+.empty-state {
+  padding: 24px 16px;
+  text-align: center;
+}
+.empty-state p { font-size: 13px; color: var(--text3); line-height: 1.6; }
+
+/* ── Canvas ── */
+.canvas-area {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.canvas-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.4;
+}
+#canvas-wrap {
+  position: relative;
+  overflow: auto;
+  max-width: 100%;
+  max-height: 100%;
+  cursor: grab;
+}
+#canvas-wrap:active { cursor: grabbing; }
+#main-canvas { display: block; image-rendering: pixelated; }
+
+.zoom-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.zoom-btn {
+  width: 32px; height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text2);
+  transition: all 0.15s;
+  box-shadow: var(--shadow);
+}
+.zoom-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.canvas-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+.canvas-hint-icon { font-size: 48px; opacity: 0.25; margin-bottom: 12px; }
+.canvas-hint-text { font-size: 14px; color: var(--text3); line-height: 1.6; }
+
+/* ── Right Panel ── */
+.right-panel {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.selected-preview {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.selected-swatch {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  margin: 0 auto 10px;
+  border: 2px solid rgba(0,0,0,0.1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  transition: background 0.3s;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.selected-code {
+  font-family: 'Space Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  min-height: 28px;
+}
+.selected-name {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 2px;
+  min-height: 18px;
+}
+.selected-hex-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.selected-hex {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text2);
+  background: var(--surface2);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.copy-hex {
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.copy-hex:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.stats-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+.stat-label { font-size: 12px; color: var(--text3); }
+.stat-val { font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; color: var(--text); }
+
+.section-title {
+  padding: 12px 16px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.all-colors-mini {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.all-colors-mini::-webkit-scrollbar { width: 3px; }
+.all-colors-mini::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.mini-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 2px 0;
+}
+.mini-dot {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.08);
+  cursor: pointer;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+  position: relative;
+}
+.mini-dot:hover { transform: scale(1.3); z-index: 2; }
+.mini-dot.active { border: 2px solid var(--accent); transform: scale(1.15); }
+.mini-dot[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ── Loading overlay ── */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(245,242,237,0.85);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+}
+.loading-overlay.show { display: flex; }
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: var(--text2); }
+
+/* ── Tooltip ── */
+.tooltip {
+  position: fixed;
+  background: var(--text);
+  color: var(--bg);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  pointer-events: none;
+  z-index: 999;
+  display: none;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">PERLER<span>·</span>HELPER</div>
+  <div class="header-sep"></div>
+  <div class="header-hint">
+    <span>导入图纸 → 颜色自动分类 → 点击颜色高亮格子</span>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- Left: color list -->
+  <div class="left-panel">
+    <div class="panel-header">颜色清单</div>
+    <div class="upload-zone" id="upload-zone">
+      <div class="upload-icon">🖼</div>
+      <div class="upload-text"><strong>点击上传图纸</strong><br>或拖放图片到这里<br><span style="font-size:10px;color:var(--text3)">PNG / JPG / GIF</span></div>
+    </div>
+    <input type="file" id="file-input" accept="image/*">
+    <div class="color-list" id="color-list">
+      <div class="empty-state"><p>导入图纸后<br>颜色清单自动生成</p></div>
+    </div>
+  </div>
+
+  <!-- Center: canvas -->
+  <div class="canvas-area" id="canvas-area">
+    <div class="canvas-bg"></div>
+    <div id="canvas-hint" class="canvas-hint">
+      <div class="canvas-hint-icon">🧩</div>
+      <div class="canvas-hint-text">从左侧上传拼豆图纸<br>开始你的创作</div>
+    </div>
+    <div id="canvas-wrap" style="display:none">
+      <canvas id="main-canvas"></canvas>
+    </div>
+    <div class="zoom-controls" id="zoom-controls" style="display:none">
+      <button class="zoom-btn" id="zoom-in">+</button>
+      <button class="zoom-btn" id="zoom-out">−</button>
+      <button class="zoom-btn" id="zoom-fit" title="适应窗口">⊡</button>
+    </div>
+  </div>
+
+  <!-- Right: info panel -->
+  <div class="right-panel">
+    <div class="selected-preview">
+      <div class="selected-swatch" id="sel-swatch">❔</div>
+      <div class="selected-code" id="sel-code">—</div>
+      <div class="selected-name" id="sel-name">点击左侧颜色高亮</div>
+      <div class="selected-hex-row">
+        <span class="selected-hex" id="sel-hex">#——</span>
+        <button class="copy-hex" id="copy-hex-btn">复制</button>
+      </div>
+    </div>
+    <div class="stats-section" id="stats-section" style="display:none">
+      <div class="stat-row">
+        <span class="stat-label">图纸颜色数</span>
+        <span class="stat-val" id="stat-colors">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">当前高亮颗粒</span>
+        <span class="stat-val" id="stat-beads">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">总颗粒数</span>
+        <span class="stat-val" id="stat-total">0</span>
+      </div>
+    </div>
+    <div class="section-title">全部颜色速选</div>
+    <div class="all-colors-mini" id="mini-dots"></div>
+  </div>
+
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">分析颜色中…</div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ── MARD Color DB ──
+const MARD = [
+["A1","#FAF4C8"],["A2","#FFFFD5"],["A3","#FEFF8B"],["A4","#FBED56"],["A5","#F4D738"],
+["A6","#FEAC4C"],["A7","#FE8B4C"],["A8","#FFDA45"],["A9","#FF995B"],["A10","#F77C31"],
+["A11","#FFDD99"],["A12","#FE9F72"],["A13","#FFC365"],["A14","#FD543D"],["A15","#FFF365"],
+["A16","#FFFF9F"],["A17","#FFE36E"],["A18","#FEBE7D"],["A19","#FD7C72"],["A20","#FFD568"],
+["A21","#FFE395"],["A22","#F4F57D"],["A23","#E6C9B7"],["A24","#F7F8A2"],["A25","#FFD67D"],["A26","#FFC830"],
+["B1","#E6EE31"],["B2","#63F347"],["B3","#9EF780"],["B4","#5DE035"],["B5","#35E352"],
+["B6","#65E2A6"],["B7","#3DAF80"],["B8","#1C9C4F"],["B9","#27523A"],["B10","#95D3C2"],
+["B11","#5D722A"],["B12","#166F41"],["B13","#CAEB7B"],["B14","#ADE946"],["B15","#2E5132"],
+["B16","#C5ED9C"],["B17","#9BB13A"],["B18","#E6EE49"],["B19","#24B88C"],["B20","#C2F0CC"],
+["B21","#156A6B"],["B22","#0B3C43"],["B23","#303A21"],["B24","#EEFCA5"],["B25","#4E846D"],
+["B26","#8D7A35"],["B27","#CCE1AF"],["B28","#9EE5B9"],["B29","#C5E254"],["B30","#E2FCB1"],
+["B31","#B0E792"],["B32","#9CAB5A"],
+["C1","#E8FFE7"],["C2","#A9F9FC"],["C3","#A0E2FB"],["C4","#41CCFF"],["C5","#01ACEB"],
+["C6","#50AAF0"],["C7","#3677D2"],["C8","#0F54C0"],["C9","#324BCA"],["C10","#3EBCE2"],
+["C11","#28DDDE"],["C12","#1C334D"],["C13","#CDE8FF"],["C14","#D5FDFF"],["C15","#22C4C6"],
+["C16","#1557A8"],["C17","#04D1F6"],["C18","#1D3344"],["C19","#1887A2"],["C20","#176DAF"],
+["C21","#BEDDFF"],["C22","#67B4BE"],["C23","#C8E2FF"],["C24","#7CC4FF"],["C25","#A9E5E5"],
+["C26","#3CAED8"],["C27","#D3DFFA"],["C28","#BBCFED"],["C29","#34488E"],
+["D1","#AEB4F2"],["D2","#858EDD"],["D3","#2F54AF"],["D4","#182A84"],["D5","#B843C5"],
+["D6","#AC7BDE"],["D7","#8854B3"],["D8","#E2D3FF"],["D9","#D5B9F8"],["D10","#361851"],
+["D11","#B9BAE1"],["D12","#DE9AD4"],["D13","#B90095"],["D14","#8B279B"],["D15","#2F1F90"],
+["D16","#E3E1EE"],["D17","#C4D4F6"],["D18","#A45EC7"],["D19","#D8C3D7"],["D20","#9C32B2"],
+["D21","#9A009B"],["D22","#333A95"],["D23","#EBDAFC"],["D24","#7786E5"],["D25","#494FC7"],["D26","#DFC2F8"],
+["E1","#FDD3CC"],["E2","#FEC0DF"],["E3","#FFB7E7"],["E4","#E8649E"],["E5","#F551A2"],
+["E6","#F13D74"],["E7","#C63478"],["E8","#FFDBE9"],["E9","#E970CC"],["E10","#D33793"],
+["E11","#FCDDD2"],["E12","#F78FC3"],["E13","#B5006D"],["E14","#FFD1BA"],["E15","#F8C7C9"],
+["E16","#FFF3EB"],["E17","#FFE2EA"],["E18","#FFC7DB"],["E19","#FEBAD5"],["E20","#D8C7D1"],
+["E21","#BD9DA1"],["E22","#B785A1"],["E23","#937A8D"],["E24","#E1BCE8"],
+["F1","#FD957B"],["F2","#FC3D46"],["F3","#F74941"],["F4","#FC283C"],["F5","#E7002F"],
+["F6","#943630"],["F7","#971937"],["F8","#BC0028"],["F9","#E2677A"],["F10","#8A4526"],
+["F11","#5A2121"],["F12","#FD4E6A"],["F13","#F35744"],["F14","#FFA9AD"],["F15","#D30022"],
+["F16","#FEC2A6"],["F17","#E69C79"],["F18","#D37C46"],["F19","#C1444A"],["F20","#CD9391"],
+["F21","#F7B4C6"],["F22","#FDC0D0"],["F23","#F67E66"],["F24","#E698AA"],["F25","#E54B4F"],
+["G1","#FFE2CE"],["G2","#FFC4AA"],["G3","#F4C3A5"],["G4","#E1B383"],["G5","#EDB045"],
+["G6","#E99C17"],["G7","#9D5B3E"],["G8","#753832"],["G9","#E6B483"],["G10","#D98C39"],
+["G11","#E0C593"],["G12","#FFC890"],["G13","#B7714A"],["G14","#8D614C"],["G15","#FCF9E0"],
+["G16","#F2D9BA"],["G17","#78524B"],["G18","#FFE4CC"],["G19","#E07935"],["G20","#A94023"],["G21","#B88558"],
+["H1","#FDFBFF"],["H2","#FEFFFF"],["H3","#B6B1BA"],["H4","#89858C"],["H5","#48464E"],
+["H6","#2F2B2F"],["H7","#000000"],["H8","#E7D6DB"],["H9","#EDEDED"],["H10","#EEE9EA"],
+["H11","#CECDD5"],["H12","#FFF5ED"],["H13","#F5ECD2"],["H14","#CFD7D3"],["H15","#98A6A8"],
+["H16","#1D1414"],["H17","#F1EDED"],["H18","#FFFDF0"],["H19","#F6EFE2"],["H20","#949FA3"],
+["H21","#FFFBE1"],["H22","#CACAD4"],["H23","#9A9D94"],
+["M1","#BCC6B8"],["M2","#8AA386"],["M3","#697D80"],["M4","#E3D2BC"],["M5","#D0CCAA"],
+["M6","#B0A782"],["M7","#B4A497"],["M8","#B38281"],["M9","#A58767"],["M10","#C5B2BC"],
+["M11","#9F7594"],["M12","#644749"],["M13","#D19066"],["M14","#C77362"],["M15","#757D78"],
+["P1","#FCF7F8"],["P2","#B0A9AC"],["P3","#AFDCAB"],["P4","#FEA49F"],["P5","#EE8C3E"],
+["P6","#5FD0A7"],["P7","#EB9270"],["P8","#F0D958"],["P9","#D9D9D9"],["P10","#D9C7EA"],
+["P11","#F3ECC9"],["P12","#E6EEF2"],["P13","#AACBEF"],["P14","#337680"],["P15","#668575"],
+["P16","#FEBF45"],["P17","#FEA324"],["P18","#FEB89F"],["P19","#FFFEEC"],["P20","#FEBECF"],
+["P21","#ECBEBF"],["P22","#E4A89F"],["P23","#A56268"],
+["Q1","#F2A5E8"],["Q2","#E9EC91"],["Q3","#FFFF00"],["Q4","#FFEBFA"],["Q5","#76CEDE"],
+["R1","#D50D21"],["R2","#F92F83"],["R3","#FD8324"],["R4","#F8EC31"],["R5","#35C75B"],
+["R6","#238891"],["R7","#19779D"],["R8","#1A60C3"],["R9","#9A56B4"],["R10","#FFDB4C"],
+["R11","#FFEBFA"],["R12","#D8D5CE"],["R13","#55514C"],["R14","#9FE4DF"],["R15","#77CEE9"],
+["R16","#3ECFCA"],["R17","#4A867A"],["R18","#7FCD9D"],["R19","#CDE55D"],["R20","#E8C7B4"],
+["R21","#AD6F3C"],["R22","#6C372F"],["R23","#FEB872"],["R24","#F3C1C0"],["R25","#C9675E"],
+["R26","#D293BE"],["R27","#EA8CB1"],["R28","#9C87D6"],
+["T1","#FFFFFF"],
+["Y1","#FD6FB4"],["Y2","#FEB481"],["Y3","#D7FAA0"],["Y4","#8BDBFA"],["Y5","#E987EA"],
+["ZG1","#DAABB3"],["ZG2","#D6AA87"],["ZG3","#C1BD8D"],["ZG4","#96869F"],
+["ZG5","#8490A6"],["ZG6","#94BFE2"],["ZG7","#E2A9D2"],["ZG8","#AB91C0"]
+];
+
+// precompute RGB for each MARD color
+const MARD_RGB = MARD.map(([code,hex]) => {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return {code,hex,r,g,b};
+});
+
+function hexToRgb(hex) {
+  return {
+    r: parseInt(hex.slice(1,3),16),
+    g: parseInt(hex.slice(3,5),16),
+    b: parseInt(hex.slice(5,7),16)
+  };
+}
+function colorDist(r1,g1,b1,r2,g2,b2) {
+  return (r1-r2)**2 + (g1-g2)**2 + (b1-b2)**2;
+}
+function findNearest(r,g,b) {
+  let best = MARD_RGB[0], bd = Infinity;
+  for (const c of MARD_RGB) {
+    const d = colorDist(r,g,b,c.r,c.g,c.b);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+
+// ── State ──
+let imageData = null;   // original image data array
+let pixelW = 0, pixelH = 0;
+let cellMap = [];       // cellMap[y][x] = {code, hex, r,g,b}
+let colorGroups = {};   // code -> {hex,r,g,b,count,indices:[{x,y}]}
+let activeCode = null;
+let zoom = 1;
+let CELL = 20;          // cell size in px
+const MAX_PIXELS = 120; // max dimension for analysis
+
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+
+// ── Upload ──
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+uploadZone.addEventListener('click', ()=>fileInput.click());
+uploadZone.addEventListener('dragover', e=>{e.preventDefault();uploadZone.classList.add('drag');});
+uploadZone.addEventListener('dragleave', ()=>uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e=>{
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImage(f);
+});
+fileInput.addEventListener('change', ()=>{ if(fileInput.files[0]) loadImage(fileInput.files[0]); });
+
+function showLoading(msg='处理中…') {
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('loading-text').textContent = msg;
+}
+function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+function loadImage(file) {
+  showLoading('读取图片…');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => processImage(img);
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function processImage(img) {
+  document.getElementById('loading-text').textContent = '分析颜色中…';
+  setTimeout(() => {
+    // scale to max dim
+    let sw = img.width, sh = img.height;
+    if (sw > MAX_PIXELS || sh > MAX_PIXELS) {
+      const s = MAX_PIXELS / Math.max(sw, sh);
+      sw = Math.round(sw * s);
+      sh = Math.round(sh * s);
+    }
+    pixelW = sw; pixelH = sh;
+
+    // read pixels
+    const tmp = document.createElement('canvas');
+    tmp.width = sw; tmp.height = sh;
+    const tc = tmp.getContext('2d');
+    tc.drawImage(img, 0, 0, sw, sh);
+    const raw = tc.getImageData(0, 0, sw, sh).data;
+
+    document.getElementById('loading-text').textContent = '匹配 MARD 色号…';
+    setTimeout(() => {
+      cellMap = [];
+      colorGroups = {};
+      let total = 0;
+
+      for (let y = 0; y < sh; y++) {
+        cellMap[y] = [];
+        for (let x = 0; x < sw; x++) {
+          const i = (y * sw + x) * 4;
+          const a = raw[i+3];
+          if (a < 30) {
+            cellMap[y][x] = null;
+            continue;
+          }
+          const best = findNearest(raw[i], raw[i+1], raw[i+2]);
+          cellMap[y][x] = best;
+          if (!colorGroups[best.code]) {
+            colorGroups[best.code] = {...best, count:0, indices:[]};
+          }
+          colorGroups[best.code].count++;
+          colorGroups[best.code].indices.push({x,y});
+          total++;
+        }
+      }
+
+      buildUI(total);
+      drawCanvas();
+      hideLoading();
+    }, 30);
+  }, 30);
+}
+
+function buildUI(total) {
+  // sort by count desc
+  const sorted = Object.values(colorGroups).sort((a,b)=>b.count-a.count);
+
+  // color list
+  const list = document.getElementById('color-list');
+  list.innerHTML = '';
+  sorted.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'color-item';
+    item.dataset.code = c.code;
+    item.innerHTML = `
+      <div class="color-dot" style="background:${c.hex}"></div>
+      <div class="color-meta">
+        <div class="color-code">${c.code}</div>
+        <div class="color-count">${c.count} 颗</div>
+      </div>
+      <div class="color-hex">${c.hex}</div>`;
+    item.addEventListener('click', ()=>selectColor(c.code));
+    list.appendChild(item);
+  });
+
+  // stats
+  document.getElementById('stat-colors').textContent = sorted.length;
+  document.getElementById('stat-total').textContent = total.toLocaleString();
+  document.getElementById('stat-beads').textContent = '—';
+  document.getElementById('stats-section').style.display = '';
+
+  // mini dots
+  const mini = document.getElementById('mini-dots');
+  mini.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'mini-row';
+  sorted.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'mini-dot';
+    d.style.background = c.hex;
+    d.title = `${c.code} · ${c.count}颗`;
+    d.dataset.code = c.code;
+    d.addEventListener('click', ()=>selectColor(c.code));
+    row.appendChild(d);
+  });
+  mini.appendChild(row);
+
+  // show canvas
+  document.getElementById('canvas-hint').style.display = 'none';
+  document.getElementById('canvas-wrap').style.display = '';
+  document.getElementById('zoom-controls').style.display = '';
+
+  fitZoom();
+}
+
+function fitZoom() {
+  const area = document.getElementById('canvas-area');
+  const aw = area.clientWidth - 32;
+  const ah = area.clientHeight - 32;
+  const fw = aw / (pixelW * CELL);
+  const fh = ah / (pixelH * CELL);
+  zoom = Math.min(fw, fh, 2);
+  applyZoom();
+}
+
+function applyZoom() {
+  canvas.style.width = (pixelW * CELL * zoom) + 'px';
+  canvas.style.height = (pixelH * CELL * zoom) + 'px';
+}
+
+// zoom buttons
+document.getElementById('zoom-in').addEventListener('click', ()=>{ zoom = Math.min(zoom*1.3, 8); applyZoom(); });
+document.getElementById('zoom-out').addEventListener('click', ()=>{ zoom = Math.max(zoom/1.3, 0.1); applyZoom(); });
+document.getElementById('zoom-fit').addEventListener('click', fitZoom);
+
+function drawCanvas() {
+  canvas.width = pixelW * CELL;
+  canvas.height = pixelH * CELL;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < pixelH; y++) {
+    for (let x = 0; x < pixelW; x++) {
+      const c = cellMap[y][x];
+      if (!c) continue;
+
+      const px = x * CELL, py = y * CELL;
+      const isActive = activeCode && c.code === activeCode;
+      const hasActive = activeCode !== null;
+
+      // bead circle
+      ctx.beginPath();
+      ctx.arc(px + CELL/2, py + CELL/2, CELL/2 - 1, 0, Math.PI*2);
+
+      if (!hasActive || isActive) {
+        // full color
+        ctx.fillStyle = c.hex;
+        ctx.fill();
+        // inner shine
+        const grad = ctx.createRadialGradient(
+          px + CELL*0.38, py + CELL*0.32, 0,
+          px + CELL/2, py + CELL/2, CELL/2
+        );
+        grad.addColorStop(0, 'rgba(255,255,255,0.35)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.12)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+      } else {
+        // dimmed
+        ctx.fillStyle = c.hex;
+        ctx.globalAlpha = 0.1;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // border
+      ctx.strokeStyle = isActive ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = isActive ? 1.5 : 0.5;
+      ctx.stroke();
+
+      // active highlight ring
+      if (isActive) {
+        ctx.beginPath();
+        ctx.arc(px + CELL/2, py + CELL/2, CELL/2 + 1, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(45,74,62,0.6)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+// canvas hover tooltip
+const tooltip = document.getElementById('tooltip');
+canvas.addEventListener('mousemove', e => {
+  if (!activeCode && Object.keys(colorGroups).length === 0) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) / (rect.width / canvas.width);
+  const sy = (e.clientY - rect.top) / (rect.height / canvas.height);
+  const gx = Math.floor(sx / CELL);
+  const gy = Math.floor(sy / CELL);
+  if (gx >= 0 && gx < pixelW && gy >= 0 && gy < pixelH) {
+    const c = cellMap[gy][gx];
+    if (c) {
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 12) + 'px';
+      tooltip.style.top = (e.clientY - 28) + 'px';
+      tooltip.textContent = `${c.code}  ${c.hex}`;
+    } else {
+      tooltip.style.display = 'none';
+    }
+  }
+});
+canvas.addEventListener('mouseleave', ()=>{ tooltip.style.display='none'; });
+
+// canvas click: select color
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) / (rect.width / canvas.width);
+  const sy = (e.clientY - rect.top) / (rect.height / canvas.height);
+  const gx = Math.floor(sx / CELL);
+  const gy = Math.floor(sy / CELL);
+  if (gx >= 0 && gx < pixelW && gy >= 0 && gy < pixelH) {
+    const c = cellMap[gy][gx];
+    if (c) selectColor(c.code);
+  }
+});
+
+function selectColor(code) {
+  if (activeCode === code) {
+    // deselect
+    activeCode = null;
+    document.querySelectorAll('.color-item').forEach(el=>el.classList.remove('active'));
+    document.querySelectorAll('.mini-dot').forEach(el=>el.classList.remove('active'));
+    document.getElementById('sel-swatch').textContent = '❔';
+    document.getElementById('sel-swatch').style.background = '';
+    document.getElementById('sel-code').textContent = '—';
+    document.getElementById('sel-name').textContent = '点击左侧颜色高亮';
+    document.getElementById('sel-hex').textContent = '#——';
+    document.getElementById('stat-beads').textContent = '—';
+    drawCanvas();
+    return;
+  }
+
+  activeCode = code;
+  const c = colorGroups[code];
+
+  // update right panel
+  document.getElementById('sel-swatch').textContent = '';
+  document.getElementById('sel-swatch').style.background = c.hex;
+  document.getElementById('sel-code').textContent = code;
+  document.getElementById('sel-name').textContent = `共 ${c.count.toLocaleString()} 颗`;
+  document.getElementById('sel-hex').textContent = c.hex;
+  document.getElementById('stat-beads').textContent = c.count.toLocaleString();
+
+  // update list
+  document.querySelectorAll('.color-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.code === code);
+  });
+  // scroll active into view
+  const activeItem = document.querySelector(`.color-item[data-code="${code}"]`);
+  if (activeItem) activeItem.scrollIntoView({block:'nearest'});
+
+  // update mini dots
+  document.querySelectorAll('.mini-dot').forEach(el => {
+    el.classList.toggle('active', el.dataset.code === code);
+  });
+
+  drawCanvas();
+}
+
+// copy hex
+document.getElementById('copy-hex-btn').addEventListener('click', () => {
+  const hex = document.getElementById('sel-hex').textContent;
+  if (hex && hex !== '#——') {
+    navigator.clipboard.writeText(hex).catch(()=>{});
+    const btn = document.getElementById('copy-hex-btn');
+    btn.textContent = '已复制!';
+    setTimeout(()=>btn.textContent='复制', 1500);
+  }
+});
+</script>
+</body>
+</html>
